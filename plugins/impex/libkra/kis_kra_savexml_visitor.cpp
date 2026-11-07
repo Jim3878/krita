@@ -393,6 +393,9 @@ void KisSaveXmlVisitor::saveLayer(QDomElement & el, const QString & layerType, c
     el.setAttribute(COLLAPSED, layer->collapsed());
     el.setAttribute(COLOR_LABEL, layer->colorLabelIndex());
     el.setAttribute(VISIBLE_IN_TIMELINE, layer->isPinnedToTimeline());
+    if (layer->nodeProperties().boolProperty(KisLayerPropertiesIcons::referenceLayer.id(), false)) {
+        el.setAttribute(REFERENCE_LAYER, 1);
+    }
 
     if(layerType == SHAPE_LAYER) {
         const KisShapeLayer *shapeLayer = static_cast<const KisShapeLayer*>(layer);

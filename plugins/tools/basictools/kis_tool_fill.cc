@@ -615,7 +615,7 @@ QWidget* KisToolFill::createOptionWidget()
     m_buttonReferenceAll = optionButtonStripReference->addButton(
         KisIconUtils::loadIcon("all-layers"));
     m_buttonReferenceLabeled =
-        optionButtonStripReference->addButton(KisIconUtils::loadIcon("tag"));
+        optionButtonStripReference->addButton(KisIconUtils::loadIcon("referenceLayerOn"));
     m_buttonReferenceCurrent->setChecked(true);
     m_widgetLabels = new KisColorLabelSelectorWidget;
     m_widgetLabels->setExclusive(false);
@@ -665,8 +665,8 @@ QWidget* KisToolFill::createOptionWidget()
 
     m_buttonReferenceCurrent->setToolTip(i18n("Fill regions found from the active layer"));
     m_buttonReferenceAll->setToolTip(i18n("Fill regions found from the merging of all layers"));
-    m_buttonReferenceLabeled->setToolTip(i18n("Fill regions found from the merging of layers with specific color labels"));
-    m_checkBoxUseActiveLayer->setToolTip(i18n("Includes the active layer in regions found from merging of layers with specific color labels"));
+    m_buttonReferenceLabeled->setToolTip(i18n("從參照圖層找出填色範圍"));
+    m_checkBoxUseActiveLayer->setToolTip(i18n("找範圍時把目前圖層也當成參照圖層"));
 
     m_buttonDragFillDoNotUse->setToolTip(i18n("Dragging will not fill different regions"));
     m_buttonDragFillAny->setToolTip(i18n("Dragging will fill regions of any color"));
@@ -796,7 +796,7 @@ QWidget* KisToolFill::createOptionWidget()
         m_buttonReferenceAll->setChecked(true);
     } else if (m_reference == Reference_ColorLabeledLayers) {
         m_buttonReferenceLabeled->setChecked(true);
-        sectionReference->setWidgetVisible("widgetLabels", true);
+        sectionReference->setWidgetVisible("widgetLabels", false); // Orita: reference layers replace color labels
     }
     if (m_continuousFillMode == ContinuousFillMode_DoNotUse) {
         m_buttonDragFillDoNotUse->setChecked(true);
@@ -1211,7 +1211,7 @@ void KisToolFill::slot_optionButtonStripReference_buttonToggled(
     }
     KisOptionCollectionWidgetWithHeader *sectionReference =
         m_optionWidget->widgetAs<KisOptionCollectionWidgetWithHeader*>("sectionReference");
-    sectionReference->setWidgetVisible("widgetLabels", button == m_buttonReferenceLabeled);
+    sectionReference->setWidgetVisible("widgetLabels", false); // Orita: reference layers replace color labels
     
     m_reference = button == m_buttonReferenceCurrent ? Reference_CurrentLayer
                                                      : (button == m_buttonReferenceAll

@@ -549,7 +549,7 @@
       <iconText>Set eraser mode</iconText>
       <activationFlags>0</activationFlags>
       <activationConditions>0</activationConditions>
-      <shortcut>E</shortcut>
+      <shortcut></shortcut>
       <isCheckable>true</isCheckable>
       <statusTip/>
     </Action>

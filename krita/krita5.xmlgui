@@ -123,6 +123,8 @@ xsi:schemaLocation="http://www.kde.org/standards/kxmlgui/1.0  http://www.kde.org
       <Action name="rulers_track_mouse"/>
       <Action name="view_show_guides"/>
       <Action name="view_lock_guides"/>
+      <Action name="orita_show_bleed"/>
+      <Action name="orita_bleed_settings"/>
       <Action name="showStatusBar" />
       <Separator/>
       <Action name="view_grid"/>

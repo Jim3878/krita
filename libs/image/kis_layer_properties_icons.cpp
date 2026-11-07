@@ -37,6 +37,7 @@ const KoID KisLayerPropertiesIcons::openFileLayerFile("open-file-layer-file", ki
 const KoID KisLayerPropertiesIcons::layerError("layer-error", ki18n("Error"));
 const KoID KisLayerPropertiesIcons::layerColorSpaceMismatch("layer-color-space-mismatch", ki18n("Layer Color Space Mismatch"));
 const KoID KisLayerPropertiesIcons::antialiased("antialiased", ki18n("Anti-aliasing"));
+const KoID KisLayerPropertiesIcons::referenceLayer("reference-layer", ki18n("參照圖層"));
 
 struct IconsPair {
     IconsPair() {}
@@ -88,6 +89,7 @@ void KisLayerPropertiesIcons::updateIcons()
     m_d->icons.insert(layerError.id(), IconsPair(KisIconUtils::loadIcon("warning"), KisIconUtils::loadIcon("warning")));
     m_d->icons.insert(layerColorSpaceMismatch.id(), IconsPair(KisIconUtils::loadIcon("different-colorspace"), KisIconUtils::loadIcon("different-colorspace")));
     m_d->icons.insert(antialiased.id(), IconsPair(KisIconUtils::loadIcon("select-shape"), KisIconUtils::loadIcon("select-pixel")));
+    m_d->icons.insert(referenceLayer.id(), IconsPair(KisIconUtils::loadIcon("referenceLayerOn"), KisIconUtils::loadIcon("referenceLayerOff")));
     // No static icons for colorOverlay.
 }
 

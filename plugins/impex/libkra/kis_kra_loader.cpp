@@ -79,6 +79,7 @@
 #include "kis_layer_properties_icons.h"
 #include "kis_node_view_color_scheme.h"
 #include "KisMirrorAxisConfig.h"
+#include "KisBleedConfig.h"
 #include <kis_cursor_override_hijacker.h>
 
 /*
@@ -386,6 +387,8 @@ KisImageSP KisKraLoader::loadXML(const QDomElement& imageElement)
             loadGuides(e);
         } else if (e.tagName() == MIRROR_AXIS) {
             loadMirrorAxis(e);
+        } else if (e.tagName() == ORITA_BLEED) {
+            KisBleedConfig::loadFromXml(e).storeInDocument(m_d->document);
         } else if (e.tagName() == "assistants") {
             loadAssistantsList(e);
         } else if (e.tagName() == "audio") {
@@ -1035,6 +1038,10 @@ KisNodeSP KisKraLoader::loadNode(const QDomElement& element, KisImageSP image)
         KisLayer* layer           = qobject_cast<KisLayer*>(node.data());
         QBitArray channelFlags    = stringToFlags(element.attribute(CHANNEL_FLAGS, ""), colorSpace->channelCount());
         layer->setChannelFlags(channelFlags);
+
+        if (element.attribute(REFERENCE_LAYER, "0") != "0") {
+            layer->setNodeProperty(KisLayerPropertiesIcons::referenceLayer.id(), true);
+        }
 
         if (element.hasAttribute(LAYER_STYLE_UUID)) {
             QString uuidString = element.attribute(LAYER_STYLE_UUID);

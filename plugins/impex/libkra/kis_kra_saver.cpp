@@ -51,6 +51,7 @@
 #include "kis_asl_layer_style_serializer.h"
 
 #include <KisMirrorAxisConfig.h>
+#include <KisBleedConfig.h>
 
 #include <QFileInfo>
 #include <QDir>
@@ -164,6 +165,7 @@ QDomElement KisKraSaver::saveXML(QDomDocument& doc,  KisImageSP image)
     saveGrid(doc, imageElement);
     saveGuides(doc, imageElement);
     saveMirrorAxis(doc, imageElement);
+    saveBleed(doc, imageElement);
     saveColorHistory(doc, imageElement);
     saveResourcesToXML(doc, imageElement);
 
@@ -899,6 +901,17 @@ bool KisKraSaver::saveGuides(QDomDocument& doc, QDomElement& element)
     if (!guides.isDefault()) {
         QDomElement guidesElement = guides.saveToXml(doc, "guides");
         element.appendChild(guidesElement);
+    }
+
+    return true;
+}
+
+bool KisKraSaver::saveBleed(QDomDocument &doc, QDomElement &element)
+{
+    const KisBleedConfig bleed = KisBleedConfig::fromDocument(m_d->doc);
+
+    if (bleed.enabled) {
+        element.appendChild(bleed.saveToXml(doc, ORITA_BLEED));
     }
 
     return true;

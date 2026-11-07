@@ -17,6 +17,8 @@
 #include "kis_clone_layer.h"
 #include "kis_paint_layer.h"
 #include "kis_assert.h"
+#include "kis_layer_properties_icons.h"
+#include <KoProperties.h>
 #include "KisDeleteLaterWrapper.h"
 #include <kis_image_animation_interface.h>
 
@@ -115,8 +117,14 @@ QPair<KisNodeSP, QPair<bool, bool>> KisMergeLabeledLayersCommand::collectNode(Ki
         return {nullptr, {true, false}};
     }
 
-    if (!m_selectedLabels.contains(node->colorLabelIndex())) {
-        // Do not use this node if it is not labeled appropriately. The children
+    // Orita: reference layers are chosen CSP-style by the "reference layer"
+    // (lighthouse) flag instead of by color labels. m_selectedLabels is
+    // intentionally ignored.
+    const bool isReferenceLayer =
+        node->nodeProperties().boolProperty(KisLayerPropertiesIcons::referenceLayer.id(), false);
+
+    if (!isReferenceLayer) {
+        // Do not use this node if it is not a reference layer. The children
         // should still be visited if it is a group. The next sibling should
         // also be visited
         if (!(m_activeNode != nullptr && node->uuid() == m_activeNode->uuid())) {
@@ -157,7 +165,7 @@ QPair<KisNodeSP, QPair<bool, bool>> KisMergeLabeledLayersCommand::collectNode(Ki
     
     if (node->inherits("KisGroupLayer")) {
         if (m_groupSelectionPolicy == GroupSelectionPolicy_NeverSelect ||
-            (m_groupSelectionPolicy == GroupSelectionPolicy_SelectIfColorLabeled && node->colorLabelIndex() == 0)) {
+            (m_groupSelectionPolicy == GroupSelectionPolicy_SelectIfColorLabeled && !isReferenceLayer)) {
             // If this group node should not be used (that is, the projection of
             // it's contents), it's children are always visited as well as
             // the next sibling

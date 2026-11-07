@@ -36,6 +36,8 @@ public:
     static const KoID layerError;
     static const KoID layerColorSpaceMismatch;
     static const KoID antialiased;
+    /// CSP-style reference layer (shown as a lighthouse in the layer docker)
+    static const KoID referenceLayer;
 
     static KisLayerPropertiesIcons* instance();
 

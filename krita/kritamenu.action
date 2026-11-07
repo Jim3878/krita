@@ -913,6 +913,30 @@
       <isCheckable>true</isCheckable>
       <statusTip></statusTip>
     </Action>
+    <Action name="orita_show_bleed">
+      <icon></icon>
+      <text>顯示出血框</text>
+      <whatsThis></whatsThis>
+      <toolTip>顯示或隱藏出血框</toolTip>
+      <iconText>顯示出血框</iconText>
+      <activationFlags>1</activationFlags>
+      <activationConditions>0</activationConditions>
+      <shortcut></shortcut>
+      <isCheckable>true</isCheckable>
+      <statusTip></statusTip>
+    </Action>
+    <Action name="orita_bleed_settings">
+      <icon></icon>
+      <text>出血框設定...</text>
+      <whatsThis></whatsThis>
+      <toolTip>設定完成尺寸、出血與安全範圍</toolTip>
+      <iconText>出血框設定</iconText>
+      <activationFlags>1</activationFlags>
+      <activationConditions>0</activationConditions>
+      <shortcut></shortcut>
+      <isCheckable>false</isCheckable>
+      <statusTip></statusTip>
+    </Action>
     <Action name="view_show_guides">
       <icon></icon>
       <text>Show Guides</text>

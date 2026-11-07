@@ -218,6 +218,7 @@ const QSet<QString>& KisNodePropertyListCommand::propsWithNoUpdates()
         KisLayerPropertiesIcons::alphaLocked.id(),
         KisLayerPropertiesIcons::selectionActive.id(),
         KisLayerPropertiesIcons::colorLabelIndex.id(),
+        KisLayerPropertiesIcons::referenceLayer.id(),
         KisLayerPropertiesIcons::colorizeNeedsUpdate.id(),
         KisLayerPropertiesIcons::openFileLayerFile.id(),
         KisLayerPropertiesIcons::layerError.id()

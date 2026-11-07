@@ -622,20 +622,10 @@ void KisToolBrush::createReferenceLineClipOptions(QWidget *optionsWidget)
 
     QCheckBox *chkEnabled = new QCheckBox(i18n("不超出參照圖層的線"), optionsWidget);
     chkEnabled->setToolTip(i18n(
-        "下筆時，以下方選取的顏色標籤圖層作為參照，從下筆位置做填色範圍判斷，"
-        "這一筆只會畫在該範圍內。"));
+        "下筆時，以參照圖層（圖層面板裡有燈塔圖示的圖層）作為參照，"
+        "從下筆位置做填色範圍判斷，這一筆只會畫在該範圍內。"));
     chkEnabled->setChecked(options.enabled);
     addOptionWidgetOption(chkEnabled);
-
-    KisColorLabelSelectorWidget *labels = new KisColorLabelSelectorWidget(optionsWidget);
-    labels->setExclusive(false);
-    labels->setButtonSize(20);
-    labels->setButtonWrapEnabled(true);
-    labels->setMouseDragEnabled(true);
-    labels->setSelection(options.colorLabels);
-    labels->setToolTip(i18n("作為參照圖層的顏色標籤"));
-    QLabel *labelsLabel = new QLabel(i18n("參照標籤:"), optionsWidget);
-    addOptionWidgetOption(labels, labelsLabel);
 
     KisSliderSpinBox *sliderGrow = new KisSliderSpinBox(optionsWidget);
     sliderGrow->setRange(0, 20);
@@ -661,8 +651,6 @@ void KisToolBrush::createReferenceLineClipOptions(QWidget *optionsWidget)
     addOptionWidgetOption(sliderThreshold, thresholdLabel);
 
     auto setDetailsVisible = [=] (bool visible) {
-        labels->setVisible(visible);
-        labelsLabel->setVisible(visible);
         sliderGrow->setVisible(visible);
         growLabel->setVisible(visible);
         sliderCloseGap->setVisible(visible);
@@ -675,7 +663,6 @@ void KisToolBrush::createReferenceLineClipOptions(QWidget *optionsWidget)
     auto save = [=] () {
         KisReferenceLineClipOptions o;
         o.enabled = chkEnabled->isChecked();
-        o.colorLabels = labels->selection();
         o.grow = sliderGrow->value();
         o.closeGap = sliderCloseGap->value();
         o.threshold = sliderThreshold->value();
@@ -686,7 +673,6 @@ void KisToolBrush::createReferenceLineClipOptions(QWidget *optionsWidget)
         setDetailsVisible(checked);
         save();
     });
-    connect(labels, &KisColorLabelSelectorWidget::selectionChanged, this, save);
     connect(sliderGrow, QOverload<int>::of(&KisSliderSpinBox::valueChanged), this, save);
     connect(sliderCloseGap, QOverload<int>::of(&KisSliderSpinBox::valueChanged), this, save);
     connect(sliderThreshold, QOverload<int>::of(&KisSliderSpinBox::valueChanged), this, save);

@@ -143,9 +143,8 @@ public:
         KisOptionCollectionWidgetWithHeader *sectionReference =
             q->widgetAs<KisOptionCollectionWidgetWithHeader *>(
                 "sectionReference");
-        sectionReference->setWidgetVisible("widgetLabels",
-                                           referenceLayers
-                                               == ColorLabeledLayers);
+        // Orita: reference layers replace color labels
+        sectionReference->setWidgetVisible("widgetLabels", false);
 
         Q_EMIT q->referenceLayersChanged(referenceLayers);
     }
@@ -226,7 +225,7 @@ KisSelectionOptions::KisSelectionOptions(QWidget *parent)
         KisIconUtils::loadIcon("current-group"));
     m_d->optionButtonStripReference->addButton(
         KisIconUtils::loadIcon("all-layers"));
-    m_d->optionButtonStripReference->addButton(KisIconUtils::loadIcon("tag"));
+    m_d->optionButtonStripReference->addButton(KisIconUtils::loadIcon("referenceLayerOn"));
     m_d->optionButtonStripReference->button(0)->setChecked(true);
     m_d->widgetLabels = new KisColorLabelSelectorWidget;
     m_d->widgetLabels->setExclusive(false);
@@ -270,7 +269,7 @@ KisSelectionOptions::KisSelectionOptions(QWidget *parent)
     m_d->optionButtonStripReference->button(2)->setToolTip(
         i18n("Select regions found from the merging of all layers"));
     m_d->optionButtonStripReference->button(3)->setToolTip(
-        i18n("Select regions found from the merging of layers with specific color labels"));
+        i18n("從參照圖層找出選取範圍"));
 
     // Construct the option widget
     setSeparatorsVisible(true);

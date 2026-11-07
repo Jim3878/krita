@@ -86,6 +86,7 @@
 #include "KisIdleTasksManager.h"
 
 #include "kis_layer_utils.h"
+#include "kis_layer_properties_icons.h"
 
 #include "ui_WdgLayerBox.h"
 #include "NodeView.h"
@@ -202,6 +203,18 @@ LayerBox::LayerBox()
 
     m_wdgLayerBox->bnLower->setEnabled(false);
     m_wdgLayerBox->bnRaise->setEnabled(false);
+
+    // CSP-style "set as reference layer" toggle
+    m_bnReferenceLayer = new QToolButton(this);
+    m_bnReferenceLayer->setCheckable(true);
+    m_bnReferenceLayer->setAutoRaise(true);
+    m_bnReferenceLayer->setFixedSize(32, 32);
+    m_bnReferenceLayer->setIconSize(QSize(22, 22));
+    m_bnReferenceLayer->setIcon(KisIconUtils::loadIcon("referenceLayerOn"));
+    m_bnReferenceLayer->setToolTip(i18n("設為參照圖層"));
+    m_bnReferenceLayer->setEnabled(false);
+    m_wdgLayerBox->hbox2->insertWidget(1, m_bnReferenceLayer);
+    connect(m_bnReferenceLayer, SIGNAL(clicked(bool)), SLOT(slotReferenceLayerClicked(bool)));
 
     m_wdgLayerBox->doubleOpacity->setRange(0, 100, 0);
     if (cfg.sliderLabels()) {
@@ -707,6 +720,14 @@ void LayerBox::updateUI()
     m_wdgLayerBox->doubleOpacity->setEnabled(activeNode && activeNode->isEditable(false));
 
     m_wdgLayerBox->cmbComposite->setEnabled(activeNode && activeNode->isEditable(false));
+
+    if (m_bnReferenceLayer) {
+        const bool isLayer = activeNode && activeNode->inherits("KisLayer");
+        KisSignalsBlocker blocker(m_bnReferenceLayer);
+        m_bnReferenceLayer->setEnabled(isLayer);
+        m_bnReferenceLayer->setChecked(isLayer &&
+            activeNode->nodeProperties().boolProperty(KisLayerPropertiesIcons::referenceLayer.id(), false));
+    }
 
     if (activeNode) {
         if (activeNode->inherits("KisColorizeMask") || activeNode->inherits("KisLayer")) {
@@ -1301,7 +1322,27 @@ void LayerBox::slotForgetAboutSavedNodeBeforeEditSelectionMode()
     m_savedNodeBeforeEditSelectionMode = 0;
 }
 
+void LayerBox::slotReferenceLayerClicked(bool checked)
+{
+    if (!m_canvas || !m_nodeManager) return;
+    KisImageSP image = m_image;
+    if (!image) return;
+
+    KisNodeList nodes = m_nodeManager->selectedNodes();
+    if (nodes.isEmpty() && m_nodeManager->activeNode()) {
+        nodes << m_nodeManager->activeNode();
+    }
+
+    Q_FOREACH (KisNodeSP node, nodes) {
+        if (!node->inherits("KisLayer")) continue;
+        KisLayerPropertiesIcons::setNodePropertyAutoUndo(node, KisLayerPropertiesIcons::referenceLayer, checked, image);
+    }
+}
+
 void LayerBox::slotUpdateIcons() {
+    if (m_bnReferenceLayer) {
+        m_bnReferenceLayer->setIcon(KisIconUtils::loadIcon("referenceLayerOn"));
+    }
     m_wdgLayerBox->bnAdd->setIcon(KisIconUtils::loadIcon("addlayer"));
     m_wdgLayerBox->bnRaise->setIcon(KisIconUtils::loadIcon("arrowup"));
     m_wdgLayerBox->bnDelete->setIcon(KisIconUtils::loadIcon("deletelayer"));

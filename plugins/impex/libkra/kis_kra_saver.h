@@ -58,6 +58,7 @@ private:
     bool saveGrid(QDomDocument& doc, QDomElement& element);
     bool saveGuides(QDomDocument& doc, QDomElement& element);
     bool saveMirrorAxis(QDomDocument& doc, QDomElement& element);
+    bool saveBleed(QDomDocument& doc, QDomElement& element);
     bool saveAudioXML(QDomDocument& doc, QDomElement& element);
     bool saveNodeKeyframes(KoStore *store, QString location, const KisNode *node);
     void saveResourcesToXML(QDomDocument& doc, QDomElement &element);

@@ -1254,6 +1254,11 @@ void KisDocument::copyFromDocument(const KisDocument &rhs)
 
 void KisDocument::copyFromDocumentImpl(const KisDocument &rhs, CopyPolicy policy)
 {
+    // Orita: the bleed frame config lives in a dynamic property, so that
+    // KisDocument.h does not have to change. Copy it to clones (they are
+    // used for saving).
+    setProperty("oritaBleedConfig", rhs.property("oritaBleedConfig"));
+
     if (policy == REPLACE) {
         d->decorationsSyncingDisabled = true;
         d->copyFrom(*(rhs.d), this);

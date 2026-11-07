@@ -114,6 +114,7 @@
 #include "kis_signal_auto_connection.h"
 #include "kis_icon_utils.h"
 #include "kis_guides_manager.h"
+#include "KisBleedManager.h"
 #include "kis_derived_resources.h"
 #include "kis_abstract_resources.h"
 #include "dialogs/kis_delayed_save_dialog.h"
@@ -208,6 +209,7 @@ public:
 
     KisSelectionManager selectionManager;
     KisGuidesManager guidesManager;
+    KisBleedManager bleedManager;
     KisStatusBar statusBar;
     QPointer<KoUpdater> persistentImageProgressUpdater;
 
@@ -554,6 +556,7 @@ void KisViewManager::setCurrentView(KisView *view)
     d->filterManager.setView(imageView);
     d->selectionManager.setView(imageView);
     d->guidesManager.setView(imageView);
+    d->bleedManager.setView(imageView);
     d->nodeManager.setView(imageView);
     d->imageManager.setView(imageView);
     d->canvasControlsManager.setView(imageView);
@@ -837,6 +840,8 @@ void KisViewManager::setupManagers()
     d->selectionManager.setup(actionManager());
 
     d->guidesManager.setup(actionManager());
+
+    d->bleedManager.setup(actionManager());
 
     d->nodeManager.setup(actionCollection(), actionManager());
 

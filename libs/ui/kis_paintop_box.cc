@@ -365,6 +365,8 @@ KisPaintopBox::KisPaintopBox(KisViewManager *viewManager, QWidget *parent, const
     QHBoxLayout* compositeLayout = new QHBoxLayout(compositeActions);
     compositeLayout->addWidget(m_cmbCompositeOp);
     compositeLayout->addWidget(m_eraseModeButton);
+    // Orita: erasing is done with the standalone eraser tool (CSP-style)
+    m_eraseModeButton->setVisible(false);
     compositeLayout->addWidget(m_alphaLockButton);
 
     compositeLayout->setSpacing(4);

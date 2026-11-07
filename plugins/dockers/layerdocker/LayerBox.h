@@ -42,6 +42,7 @@ typedef QList<QModelIndex> QModelIndexList;
 
 class QMenu;
 class QAbstractButton;
+class QToolButton;
 class KoCompositeOp;
 class KisCanvas2;
 class KisNodeModel;
@@ -96,6 +97,7 @@ private Q_SLOTS:
 
     // from the layerbox to the node manager
     void slotRmClicked();
+    void slotReferenceLayerClicked(bool checked);
     void slotRaiseClicked();
     void slotLowerClicked();
     void slotPropertiesClicked();
@@ -156,6 +158,7 @@ private:
     QScopedPointer<KisSelectionActionsAdapter> m_selectionActionsAdapter;
     QMenu *m_newLayerMenu;
     QMenu *m_opLayerMenu;
+    QToolButton *m_bnReferenceLayer {nullptr};
     KisImageWSP m_image;
     QPointer<KisNodeModel> m_nodeModel;
     QPointer<KisNodeFilterProxyModel> m_filteringModel;

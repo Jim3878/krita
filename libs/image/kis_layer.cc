@@ -286,6 +286,9 @@ KisBaseNode::PropertyList KisLayer::sectionModelProperties() const
 
     l << KisLayerPropertiesIcons::getProperty(KisLayerPropertiesIcons::inheritAlpha, alphaChannelDisabled());
 
+    l << KisLayerPropertiesIcons::getProperty(KisLayerPropertiesIcons::referenceLayer,
+                                              nodeProperties().boolProperty(KisLayerPropertiesIcons::referenceLayer.id(), false));
+
     if (colorOverlayMask()) {
         // Use an immutable property (with a string value), to hide it in the layer properties dialog.
         l << KisBaseNode::Property(KisLayerPropertiesIcons::colorOverlay, "true");
@@ -301,6 +304,12 @@ void KisLayer::setSectionModelProperties(const KisBaseNode::PropertyList &proper
     Q_FOREACH (const KisBaseNode::Property &property, properties) {
         if (property.id == KisLayerPropertiesIcons::inheritAlpha.id()) {
             disableAlphaChannel(property.state.toBool());
+        }
+
+        if (property.id == KisLayerPropertiesIcons::referenceLayer.id()) {
+            if (nodeProperties().boolProperty(property.id, false) != property.state.toBool()) {
+                setNodeProperty(property.id, property.state.toBool());
+            }
         }
 
         if (property.id == KisLayerPropertiesIcons::layerStyle.id()) {

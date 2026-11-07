@@ -9,6 +9,7 @@
 
 #include <QObject>
 #include <QTransform>
+#include <QElapsedTimer>
 #include <KoPointerEvent.h>
 
 class QWidget;
@@ -32,10 +33,13 @@ private:
     inline KoPointerEvent* createTabletEvent(QEvent *event);
 
     bool shouldResetWheelDelta(QEvent *event);
+    bool shouldIgnoreMouseEvent(QEvent *event) const;
 
 private:
     QTransform m_widgetToDocument;
     bool m_tabletPressed;
+    bool m_mousePressed {false};
+    QElapsedTimer m_lastTabletEvent;
 
     Qt::MouseButton m_pressedButton;
     KisScratchPad *m_scratchPad;

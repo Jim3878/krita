@@ -51,6 +51,7 @@
 #include "kis_tool_freehand_helper.h"
 #include "strokes/freehand_stroke.h"
 #include "kis_tool_utils.h"
+#include "KisReferenceLineClip.h"
 
 using namespace std::placeholders; // For _1 placeholder
 

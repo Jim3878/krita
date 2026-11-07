@@ -355,7 +355,9 @@ void KisToolFreehandHelper::initPaintImpl(qreal startAngle,
         const QPoint startPos(qFloor(pi.pos().x()), qFloor(pi.pos().y()));
         freehandStroke->setReferenceLineClip(
             KisReferenceLineClipJobSP(
-                new KisReferenceLineClipJob(strongImage, startPos, m_d->referenceLineClipOptions)));
+                new KisReferenceLineClipJob(strongImage, startPos,
+                                            m_d->referenceLineClipOptions,
+                                            m_d->resources->activeSelection())));
     }
 
     m_d->strokeId = m_d->strokesFacade->startStroke(stroke);

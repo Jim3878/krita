@@ -7,6 +7,9 @@
 #include "KisReferenceLineClip.h"
 
 #include <QStringList>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QSet>
 #include <ksharedconfig.h>
 #include <kconfiggroup.h>
 
@@ -65,23 +68,51 @@ void KisReferenceLineClipOptions::saveToConfig() const
     cfg.writeEntry("colorLabels", labels.join(','));
 }
 
+namespace {
+/**
+ * Image bounds that always report the full-resolution level of detail.
+ *
+ * While a level-of-detail (preview) stroke is running, every device whose
+ * default bounds point to the image reads and writes its LOD plane. The
+ * clipping selection is computed in full resolution, so the temporary devices
+ * used for the computation use these bounds instead.
+ */
+class FullResolutionBounds : public KisDefaultBounds
+{
+public:
+    FullResolutionBounds(KisImageWSP image) : KisDefaultBounds(image) {}
+    int currentLevelOfDetail() const override { return 0; }
+};
+}
+
 struct KisReferenceLineClipJob::Private
 {
+    QMutex mutex;
+
     QPoint startPos;
     QRect imageBounds;
     KisReferenceLineClipOptions options;
+    KisDefaultBoundsBaseSP fullResBounds;
+    KisSelectionSP existingSelection;
     KisPaintDeviceSP referenceDevice;
     QScopedPointer<KisMergeLabeledLayersCommand> mergeCommand;
+
+    bool computed {false};
+    KisSelectionSP selection;
+    QSet<int> uploadedLods;
 };
 
 KisReferenceLineClipJob::KisReferenceLineClipJob(KisImageSP image,
                                                  const QPoint &startPos,
-                                                 const KisReferenceLineClipOptions &options)
+                                                 const KisReferenceLineClipOptions &options,
+                                                 KisSelectionSP existingSelection)
     : m_d(new Private)
 {
     m_d->startPos = startPos;
     m_d->imageBounds = image->bounds();
     m_d->options = options;
+    m_d->fullResBounds = new FullResolutionBounds(image);
+    m_d->existingSelection = existingSelection;
     m_d->referenceDevice = KisMergeLabeledLayersCommand::createRefPaintDevice(
         image, "Reference Line Clip Reference Device");
 
@@ -108,25 +139,48 @@ void KisReferenceLineClipJob::releaseMergeCommand()
     }
 }
 
-KisSelectionSP KisReferenceLineClipJob::computeSelection(KisPaintDeviceSP targetDevice,
-                                                         KisSelectionSP existingSelection)
+KisSelectionSP KisReferenceLineClipJob::selectionForLod(KisPaintDeviceSP targetDevice,
+                                                        int levelOfDetail)
 {
-    if (!m_d->mergeCommand || !m_d->imageBounds.contains(m_d->startPos)) {
-        return nullptr;
+    QMutexLocker l(&m_d->mutex);
+
+    if (!m_d->computed) {
+        m_d->computed = true;
+        computeFullResolutionSelection(targetDevice);
     }
 
+    if (m_d->selection && levelOfDetail > 0 && !m_d->uploadedLods.contains(levelOfDetail)) {
+        // generate the preview (LOD) plane of the selection, the same way
+        // KisSyncLodCacheStrokeStrategy does it for the image devices
+        KisPixelSelectionSP pixelSelection = m_d->selection->pixelSelection();
+        QScopedPointer<KisPaintDevice::LodDataStruct> data(
+            pixelSelection->createLodDataStruct(levelOfDetail));
+        pixelSelection->updateLodDataStruct(data.data(), m_d->imageBounds);
+        pixelSelection->uploadLodDataStruct(data.data());
+        m_d->uploadedLods.insert(levelOfDetail);
+    }
+
+    return m_d->selection;
+}
+
+void KisReferenceLineClipJob::computeFullResolutionSelection(KisPaintDeviceSP targetDevice)
+{
+    if (!m_d->mergeCommand || !m_d->imageBounds.contains(m_d->startPos)) {
+        return;
+    }
+
+    // layer clones used by the merge always take the full-resolution data
     m_d->mergeCommand->redo();
     releaseMergeCommand();
 
     // no color-labeled layers (or they are empty): nothing to clip against
     if (m_d->referenceDevice->exactBounds().isEmpty()) {
-        return nullptr;
+        return;
     }
 
-    KisPixelSelectionSP region =
-        new KisPixelSelection(new KisSelectionDefaultBounds(targetDevice));
+    KisPixelSelectionSP region = new KisPixelSelection(m_d->fullResBounds);
 
-    KisFillPainter fillPainter(targetDevice);
+    KisFillPainter fillPainter(m_d->referenceDevice);
     fillPainter.setWidth(m_d->imageBounds.width());
     fillPainter.setHeight(m_d->imageBounds.height());
     fillPainter.setRegionFillingMode(KisFillPainter::RegionFillingMode_FloodFill);
@@ -144,15 +198,22 @@ KisSelectionSP KisReferenceLineClipJob::computeSelection(KisPaintDeviceSP target
                                      m_d->referenceDevice,
                                      nullptr);
 
-    if (existingSelection) {
-        region->applySelection(existingSelection->pixelSelection(), SELECTION_INTERSECT);
+    if (m_d->existingSelection) {
+        // the copy takes the full-resolution data of the existing selection
+        KisPixelSelectionSP existing =
+            new KisPixelSelection(*m_d->existingSelection->projection());
+        existing->setDefaultBounds(m_d->fullResBounds);
+        region->applySelection(existing, SELECTION_INTERSECT);
     }
 
     KisSelectionSP selection =
-        new KisSelection(new KisSelectionDefaultBounds(targetDevice),
-                         KisImageResolutionProxy::identity());
+        new KisSelection(m_d->fullResBounds, KisImageResolutionProxy::identity());
     selection->pixelSelection()->applySelection(region, SELECTION_REPLACE);
+
+    // from now on the selection follows the level of detail of the painted
+    // device, so that the preview stroke reads its LOD plane
+    selection->setDefaultBounds(new KisSelectionDefaultBounds(targetDevice));
     selection->updateProjection();
 
-    return selection;
+    m_d->selection = selection;
 }

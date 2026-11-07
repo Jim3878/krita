@@ -17,7 +17,6 @@
 #include <brushengine/kis_paintop_settings.h>
 #include "kis_smoothing_options.h"
 #include "kundo2magicstring.h"
-#include "KisReferenceLineClip.h"
 
 
 class KoPointerEvent;
@@ -27,6 +26,7 @@ class KisStrokesFacade;
 class KisPostExecutionUndoAdapter;
 class KisPaintOp;
 class KisFreehandStrokeInfo;
+struct KisReferenceLineClipOptions;
 
 
 class KRITAUI_EXPORT KisToolFreehandHelper : public QObject

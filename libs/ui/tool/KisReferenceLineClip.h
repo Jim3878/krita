@@ -46,33 +46,45 @@ struct KRITAUI_EXPORT KisReferenceLineClipOptions
 };
 
 /**
- * One-shot helper for a single stroke.
+ * Helper shared by the strokes (the level-of-detail preview stroke and the
+ * full-resolution stroke) of a single user stroke.
  *
  * Construct it in the GUI thread when the stroke is started (it prepares the
  * layer merge, which needs a temporary image that must be created in the GUI
- * thread). Then call computeSelection() from a stroke job.
+ * thread). Then call selectionForLod() from a stroke job.
  */
 class KRITAUI_EXPORT KisReferenceLineClipJob
 {
 public:
+    /**
+     * @param image image containing the reference layers
+     * @param startPos pen-down position in full-resolution image coordinates
+     * @param options clipping options
+     * @param existingSelection the selection that is active when the stroke
+     *        starts (may be null); the result is intersected with it
+     */
     KisReferenceLineClipJob(KisImageSP image,
                             const QPoint &startPos,
-                            const KisReferenceLineClipOptions &options);
+                            const KisReferenceLineClipOptions &options,
+                            KisSelectionSP existingSelection);
     ~KisReferenceLineClipJob();
 
     /**
-     * Compute the clipping selection. Must be called from a stroke job.
+     * Returns the clipping selection, usable in a stroke working on the level
+     * of detail @p levelOfDetail (0 = full resolution). The selection is
+     * computed in full resolution on the first call; for lod > 0 its
+     * level-of-detail plane is generated as well.
+     *
+     * Must be called from a stroke job.
      *
      * @param targetDevice the device that is going to be painted on
-     * @param existingSelection the currently active selection (may be null);
-     *        the result is intersected with it
-     * @return the selection to use for the stroke, or null if the stroke
-     *         should not be clipped (e.g. there are no reference layers)
+     * @return the selection, or null if the stroke should not be clipped
+     *         (e.g. there are no reference layers)
      */
-    KisSelectionSP computeSelection(KisPaintDeviceSP targetDevice,
-                                    KisSelectionSP existingSelection);
+    KisSelectionSP selectionForLod(KisPaintDeviceSP targetDevice, int levelOfDetail);
 
 private:
+    void computeFullResolutionSelection(KisPaintDeviceSP targetDevice);
     void releaseMergeCommand();
 
     struct Private;

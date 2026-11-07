@@ -33,6 +33,7 @@
 #include "KisAsynchronousStrokeUpdateHelper.h"
 #include "kis_resources_snapshot.h"
 #include "kis_selection.h"
+#include "KisReferenceLineClip.h"
 
 struct FreehandStrokeStrategy::Private
 {
@@ -48,7 +49,8 @@ struct FreehandStrokeStrategy::Private
     Private(const Private &rhs)
         : randomSource(rhs.randomSource),
           resources(rhs.resources),
-          needsAsynchronousUpdates(rhs.needsAsynchronousUpdates)
+          needsAsynchronousUpdates(rhs.needsAsynchronousUpdates),
+          referenceLineClip(rhs.referenceLineClip)
     {
         if (needsAsynchronousUpdates) {
             timeSinceLastUpdate.start();
@@ -67,7 +69,9 @@ struct FreehandStrokeStrategy::Private
     const bool needsAsynchronousUpdates = false;
     std::mutex updateEntryMutex;
 
+    // shared by the LOD (preview) stroke and the full-resolution stroke
     KisReferenceLineClipJobSP referenceLineClip;
+    int levelOfDetail = 0;
 };
 
 FreehandStrokeStrategy::FreehandStrokeStrategy(KisResourcesSnapshotSP resources,
@@ -97,6 +101,7 @@ FreehandStrokeStrategy::FreehandStrokeStrategy(const FreehandStrokeStrategy &rhs
       m_d(new Private(*rhs.m_d))
 {
     m_d->randomSource.setLevelOfDetail(levelOfDetail);
+    m_d->levelOfDetail = levelOfDetail;
 }
 
 FreehandStrokeStrategy::~FreehandStrokeStrategy()
@@ -154,9 +159,12 @@ void FreehandStrokeStrategy::initStrokeCallback()
             KisNodeSP node = resources->currentNode();
             if (!node || !node->paintDevice()) return;
 
+            // Both the LOD stroke and the full-resolution stroke share the
+            // resources and the clip job; the selection is computed once and
+            // carries a LOD plane for the preview stroke.
             KisSelectionSP selection =
-                m_d->referenceLineClip->computeSelection(node->paintDevice(),
-                                                         resources->activeSelection());
+                m_d->referenceLineClip->selectionForLod(node->paintDevice(),
+                                                        m_d->levelOfDetail);
             if (selection) {
                 resources->setSelectionOverride(selection);
             }
@@ -366,8 +374,6 @@ void FreehandStrokeStrategy::issueSetDirtySignals()
 KisStrokeStrategy* FreehandStrokeStrategy::createLodClone(int levelOfDetail)
 {
     if (!m_d->resources->presetAllowsLod()) return 0;
-    // the clipping selection is computed in full resolution only
-    if (m_d->referenceLineClip) return 0;
     if (!m_d->resources->currentNode()->supportsLodPainting()) return 0;
 
     FreehandStrokeStrategy *clone = new FreehandStrokeStrategy(*this, levelOfDetail);

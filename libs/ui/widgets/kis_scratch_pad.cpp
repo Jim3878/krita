@@ -942,6 +942,35 @@ void KisScratchPad::loadScratchpadImage(QImage image)
     update();
 }
 
+QPoint KisScratchPad::scratchpadImageDataOffset() const
+{
+    if (!m_paintLayer) return QPoint();
+    return m_paintLayer->exactBounds().topLeft();
+}
+
+void KisScratchPad::loadScratchpadImageAt(QImage image, const QPoint &offset)
+{
+    if (!m_paintLayer) return;
+
+    m_translateTransform.reset();
+    updateTransformations();
+    fillDefault(); // wipes out whatever was there before
+
+    KisPaintDeviceSP paintDevice = m_paintLayer->paintDevice();
+    KisPaintDeviceSP device = new KisPaintDevice(paintDevice->colorSpace());
+    device->convertFromQImage(image, 0, offset.x(), offset.y());
+
+    {
+        KisUpdateSchedulerLockWithFeedback l(m_updateScheduler);
+        KisPainter painter(paintDevice);
+        painter.beginTransaction();
+        painter.bitBlt(offset, device, QRect(offset, image.size()));
+        painter.deleteTransaction();
+    }
+
+    update();
+}
+
 QImage KisScratchPad::copyScratchpadImageData()
 {
     const QRect paintingBounds = m_paintLayer.data()->exactBounds();

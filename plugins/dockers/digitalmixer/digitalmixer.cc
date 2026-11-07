@@ -6,6 +6,7 @@
 
 #include "digitalmixer.h"
 #include "digitalmixer_dock.h"
+#include "colormixing_dock.h"
 
 #include <kpluginfactory.h>
 
@@ -49,10 +50,32 @@ private:
 };
 
 
+// Orita: CSP-style color mixing palette
+class ColorMixingDockFactory : public KoDockFactoryBase {
+public:
+    QString id() const override
+    {
+        return QString("OritaColorMixing");
+    }
+
+    QDockWidget* createDockWidget() override
+    {
+        ColorMixingDock *dockWidget = new ColorMixingDock();
+        dockWidget->setObjectName(id());
+        return dockWidget;
+    }
+
+    DockPosition defaultDockPosition() const override
+    {
+        return DockRight;
+    }
+};
+
 DigitalMixerPlugin::DigitalMixerPlugin(QObject *parent, const QVariantList &)
     : QObject(parent)
 {
     KoDockRegistry::instance()->add(new DigitalMixerDockFactory());
+    KoDockRegistry::instance()->add(new ColorMixingDockFactory());
 }
 
 DigitalMixerPlugin::~DigitalMixerPlugin()

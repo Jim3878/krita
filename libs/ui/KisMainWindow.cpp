@@ -18,6 +18,8 @@
 #include <QStandardPaths>
 #include <QDesktopServices>
 #include <QScreen>
+#include <QCursor>
+#include <QGuiApplication>
 #include <QDialog>
 #include <QDockWidget>
 #include <QIcon>
@@ -25,6 +27,8 @@
 #include <QLayout>
 #include <QMdiArea>
 #include <QMdiSubWindow>
+#include <QMouseEvent>
+#include <QTimer>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPointer>
@@ -343,6 +347,80 @@ public:
         }
         return 0;
     }
+};
+
+/**
+ * Orita: keeps an MDI subwindow reachable. After it is moved, its title bar
+ * is put back inside the work area, and a part of it always stays visible.
+ */
+class OritaSubWindowKeeper : public QObject
+{
+public:
+    OritaSubWindowKeeper(QMdiSubWindow *subWindow)
+        : QObject(subWindow)
+        , m_subWindow(subWindow)
+    {
+        subWindow->installEventFilter(this);
+
+        m_releaseWatch.setInterval(50);
+        connect(&m_releaseWatch, &QTimer::timeout, this, [this] () {
+            if (QGuiApplication::mouseButtons() & Qt::LeftButton) return;
+            m_releaseWatch.stop();
+            onDragFinished();
+        });
+    }
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override
+    {
+        if (obj != m_subWindow) return false;
+
+        if (event->type() == QEvent::MouseButtonPress) {
+            QMouseEvent *e = static_cast<QMouseEvent*>(event);
+            const int titleBottom = m_subWindow->widget() ? m_subWindow->widget()->geometry().top() : 30;
+
+            // pressed on the title bar: watch where the drag ends
+            if (e->button() == Qt::LeftButton && e->pos().y() < titleBottom &&
+                !m_subWindow->isMaximized() && !m_subWindow->isMinimized()) {
+                m_releaseWatch.start();
+            }
+        } else if ((event->type() == QEvent::Move || event->type() == QEvent::Resize) &&
+                   !m_releaseWatch.isActive() &&
+                   !m_subWindow->isMaximized() && !m_subWindow->isMinimized()) {
+
+            QTimer::singleShot(0, this, [this] () { keepReachable(); });
+        }
+        return false;
+    }
+
+private:
+    void onDragFinished()
+    {
+        keepReachable();
+    }
+
+    void keepReachable()
+    {
+        QWidget *area = m_subWindow->parentWidget();
+        if (!area || m_subWindow->isMaximized() || m_subWindow->isMinimized()) return;
+
+        const QRect avail = area->rect();
+        const QRect geom = m_subWindow->geometry();
+        const int keepVisible = 80;
+
+        QPoint pos = geom.topLeft();
+        pos.setY(qBound(avail.top(), pos.y(), qMax(avail.top(), avail.bottom() - 40)));
+        pos.setX(qBound(avail.left() - geom.width() + keepVisible, pos.x(),
+                        qMax(avail.left(), avail.right() - keepVisible)));
+
+        if (pos != geom.topLeft()) {
+            m_subWindow->move(pos);
+        }
+    }
+
+private:
+    QMdiSubWindow *m_subWindow;
+    QTimer m_releaseWatch;
 };
 
 class ScopedWidgetDisabler
@@ -779,9 +857,25 @@ void KisMainWindow::showView(KisView *imageView, QMdiSubWindow *subwin)
         imageView->canvasBase()->setFavoriteResourceManager(d->viewManager->paintOpBox()->favoriteResourcesManager());
         imageView->slotLoadingFinished();
 
+        bool centerAfterShowing = false;
+
         if (!subwin) {
             QMdiSubWindow *currentSubWin = d->mdiArea->currentSubWindow();
             bool shouldMaximize = currentSubWin ? currentSubWin->isMaximized() : true;
+
+            // Orita: in subwindow mode, a second view of the same document
+            // used to open maximized right on top of the first one, so it
+            // looked like nothing happened. Show it as a normal window instead.
+            if (d->mdiArea->viewMode() == QMdiArea::SubWindowView) {
+                Q_FOREACH (QMdiSubWindow *other, d->mdiArea->subWindowList()) {
+                    KisView *otherView = qobject_cast<KisView*>(other->widget());
+                    if (otherView && otherView->document() == imageView->document()) {
+                        shouldMaximize = false;
+                        break;
+                    }
+                }
+            }
+
             subwin = d->mdiArea->addSubWindow(imageView);
 
             /**
@@ -805,11 +899,17 @@ void KisMainWindow::showView(KisView *imageView, QMdiSubWindow *subwin)
 
             if (shouldMaximize) {
                 subwin->setWindowState(Qt::WindowMaximized);
+            } else if (d->mdiArea->viewMode() == QMdiArea::SubWindowView) {
+                centerAfterShowing = true;
             }
         } else {
             subwin->setWidget(imageView);
         }
         imageView->setSubWindow(subwin);
+        if (!subwin->property("oritaKeeper").toBool()) {
+            subwin->setProperty("oritaKeeper", true);
+            new OritaSubWindowKeeper(subwin);
+        }
         subwin->setAttribute(Qt::WA_DeleteOnClose, true);
         connect(subwin, SIGNAL(destroyed()), SLOT(updateWindowMenu()));
 
@@ -828,6 +928,28 @@ void KisMainWindow::showView(KisView *imageView, QMdiSubWindow *subwin)
         }
         else {
             imageView->show();
+        }
+
+        // Orita: new subwindows open in the middle of the work area, fully
+        // visible, instead of at a cascaded position that may be off-screen.
+        if (centerAfterShowing) {
+            QPointer<QMdiSubWindow> centeredWindow = subwin;
+            QPointer<QMdiArea> area = d->mdiArea;
+            QTimer::singleShot(0, d->mdiArea, [centeredWindow, area] () {
+                if (!centeredWindow || !area) return;
+                // QMdiArea maximizes a newly activated window when the previous
+                // one was maximized; undo that for this one.
+                if (centeredWindow->isMaximized()) {
+                    centeredWindow->showNormal();
+                }
+                const QRect avail = area->viewport()->rect();
+                const QSize size(qMax(200, avail.width() * 2 / 3), qMax(150, avail.height() * 2 / 3));
+                centeredWindow->resize(size.boundedTo(avail.size()));
+                const QSize actual = centeredWindow->size();
+                centeredWindow->move(avail.x() + (avail.width() - actual.width()) / 2,
+                                     avail.y() + (avail.height() - actual.height()) / 2);
+                centeredWindow->raise();
+            });
         }
 
         /**
@@ -2982,7 +3104,43 @@ void KisMainWindow::newWindow()
 #endif
     KisMainWindow *mainWindow = KisPart::instance()->createMainWindow();
     mainWindow->initializeGeometry();
+
+    // Orita: the restored geometry is the same as this window's, so the new
+    // window used to open exactly on top of it (or off-screen). Open it on
+    // the screen under the mouse cursor, offset and a bit smaller, and
+    // show the current document in it right away.
+    {
+        QScreen *screen = QGuiApplication::screenAt(QCursor::pos());
+        if (!screen) screen = this->screen();
+        const QRect desk = screen->availableGeometry();
+
+        if (mainWindow->isMaximized() || mainWindow->isFullScreen()) {
+            mainWindow->showNormal();
+        }
+
+        const int w = desk.width() / 2;
+        const int h = desk.height() * 2 / 3;
+        mainWindow->setGeometry(desk.x() + (desk.width() - w) / 2 + 40,
+                                desk.y() + (desk.height() - h) / 2 + 40,
+                                w, h);
+    }
+
     mainWindow->show();
+    mainWindow->raise();
+    mainWindow->activateWindow();
+
+    if (activeView() && activeView()->document()) {
+        mainWindow->newView(activeView()->document());
+
+        // Orita: the extra window is a second canvas, so start it in
+        // canvas-only mode (Tab brings the UI back).
+        QPointer<KisMainWindow> newMainWindow = mainWindow;
+        QTimer::singleShot(0, mainWindow, [newMainWindow] () {
+            if (newMainWindow && newMainWindow->viewManager()) {
+                newMainWindow->viewManager()->switchCanvasOnly(true);
+            }
+        });
+    }
 }
 
 void KisMainWindow::closeCurrentWindow()

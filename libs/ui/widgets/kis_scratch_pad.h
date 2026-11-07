@@ -184,6 +184,11 @@ public Q_SLOTS:
 
     QImage copyScratchpadImageData();
 
+    /// Orita: position of the image returned by copyScratchpadImageData()
+    QPoint scratchpadImageDataOffset() const;
+    /// Orita: like loadScratchpadImage(), but puts the image at @p offset
+    void loadScratchpadImageAt(QImage image, const QPoint &offset);
+
 Q_SIGNALS:
     /**
      * @brief signal is emitted when scratchpad scale is changed (from zoom canvas or manually)

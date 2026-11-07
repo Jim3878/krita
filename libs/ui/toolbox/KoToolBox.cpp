@@ -35,6 +35,14 @@
 #include <KisViewManager.h>
 #include <KoCanvasController.h>
 #include <KoShapeLayer.h>
+#include <kis_icon.h>
+#include <QDialog>
+#include <QCheckBox>
+#include <QGridLayout>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
 
 #define BUTTON_MARGIN 10
 
@@ -66,6 +74,9 @@ public:
     QList<QToolButton*> buttons;
     KoToolBoxButton *selectedButton {nullptr};
     QHash<QString, KoToolBoxButton*> buttonsByToolId;
+    QList<KoToolAction*> toolActions;
+    QStringList hiddenToolIds;
+    QList<QString> lastVisibilityCodes;
     QMap<QString, Section*> sections;
     KoToolBoxLayout *layout {0};
     QButtonGroup *buttonGroup {0};
@@ -101,6 +112,7 @@ KoToolBox::KoToolBox()
     const int toolbuttonSize = buttonSize(screen);
     KConfigGroup cfg =  KSharedConfig::openConfig()->group("KoToolBox");
     d->iconSize = cfg.readEntry("iconSize", toolbuttonSize);
+    d->hiddenToolIds = cfg.readEntry("oritaHiddenTools", QStringList());
 
     setCompact(cfg.readEntry<bool>("compact", false));
 }
@@ -182,6 +194,7 @@ void KoToolBox::addButton(KoToolAction *toolAction)
 
     d->buttonGroup->addButton(button);
     d->buttonsByToolId.insert(toolAction->id(), button);
+    d->toolActions << toolAction;
 
     d->visibilityCodes.insert(button, toolAction->visibilityCode());
 }
@@ -208,8 +221,17 @@ void KoToolBox::setActiveTool(KoCanvasController *canvas)
 
 void KoToolBox::setButtonsVisible(const QList<QString> &codes)
 {
+    d->lastVisibilityCodes = codes;
+
     Q_FOREACH (QToolButton *button, d->visibilityCodes.keys()) {
         QString code = d->visibilityCodes.value(button);
+
+        // Orita: tools hidden by the user
+        const QString toolId = d->buttonsByToolId.key(static_cast<KoToolBoxButton*>(button));
+        if (d->hiddenToolIds.contains(toolId)) {
+            button->setVisible(false);
+            continue;
+        }
 
         if (code.startsWith(QLatin1String("flake/"))) {
             continue;
@@ -375,6 +397,81 @@ void KoToolBox::setupIconSizeMenu(QMenu *menu)
             }
         }
     }
+}
+
+void KoToolBox::setupVisibleToolsMenu(QMenu *menu)
+{
+    menu->addAction(i18n("選擇顯示的工具..."), this, [this] () {
+        showVisibleToolsDialog();
+    });
+}
+
+void KoToolBox::showVisibleToolsDialog()
+{
+    QDialog *dlg = new QDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle(i18n("顯示的工具"));
+
+    QVBoxLayout *mainLayout = new QVBoxLayout(dlg);
+    QLabel *hint = new QLabel(i18n("取消勾選的工具會從工具箱隱藏，快捷鍵仍然可以使用。"), dlg);
+    hint->setWordWrap(true);
+    mainLayout->addWidget(hint);
+
+    QGridLayout *grid = new QGridLayout();
+    mainLayout->addLayout(grid);
+
+    auto saveAndApply = [this] () {
+        KConfigGroup cfg = KSharedConfig::openConfig()->group("KoToolBox");
+        cfg.writeEntry("oritaHiddenTools", d->hiddenToolIds);
+        setButtonsVisible(d->lastVisibilityCodes);
+    };
+
+    QList<QCheckBox*> boxes;
+    const int columns = 2;
+    int index = 0;
+
+    Q_FOREACH (KoToolAction *toolAction, d->toolActions) {
+        const QString id = toolAction->id();
+        QString name = toolAction->toolTip();
+        if (name.isEmpty()) name = id;
+
+        QCheckBox *box = new QCheckBox(name, dlg);
+        box->setIcon(KisIconUtils::loadIcon(toolAction->iconName()));
+        box->setChecked(!d->hiddenToolIds.contains(id));
+        grid->addWidget(box, index / columns, index % columns);
+        boxes << box;
+        index++;
+
+        connect(box, &QCheckBox::toggled, dlg, [this, id, saveAndApply] (bool visible) {
+            if (visible) {
+                d->hiddenToolIds.removeAll(id);
+            } else if (!d->hiddenToolIds.contains(id)) {
+                d->hiddenToolIds << id;
+            }
+            saveAndApply();
+        });
+    }
+
+    QHBoxLayout *buttons = new QHBoxLayout();
+    QPushButton *showAll = new QPushButton(i18n("全部顯示"), dlg);
+    QPushButton *close = new QPushButton(i18n("關閉"), dlg);
+    buttons->addWidget(showAll);
+    buttons->addStretch();
+    buttons->addWidget(close);
+    mainLayout->addLayout(buttons);
+
+    connect(showAll, &QPushButton::clicked, dlg, [this, boxes, saveAndApply] () {
+        d->hiddenToolIds.clear();
+        Q_FOREACH (QCheckBox *box, boxes) {
+            const bool blocked = box->blockSignals(true);
+            box->setChecked(true);
+            box->blockSignals(blocked);
+        }
+        saveAndApply();
+    });
+    connect(close, &QPushButton::clicked, dlg, &QDialog::close);
+
+    dlg->show();
 }
 
 KoToolBoxLayout *KoToolBox::toolBoxLayout() const

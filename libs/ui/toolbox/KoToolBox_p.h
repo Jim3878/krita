@@ -99,6 +99,9 @@ protected:
 
 private:
     void setupIconSizeMenu(QMenu *menu);
+    /// Orita: checkable list of the tools to show in the toolbox
+    void setupVisibleToolsMenu(QMenu *menu);
+    void showVisibleToolsDialog();
 
     friend class KoToolBoxDocker;
 

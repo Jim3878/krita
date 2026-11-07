@@ -185,6 +185,8 @@ void KoToolBoxDocker::contextMenuEvent(QContextMenuEvent *event)
         compact->setChecked(m_toolBox->isCompact());
         connect(compact, &QAction::triggered, this, &KoToolBoxDocker::changeCompact);
 
+        m_toolBox->setupVisibleToolsMenu(m_contextMenu);
+
         m_contextMenu->addSection(i18n("Icon Size"));
         m_toolBox->setupIconSizeMenu(m_contextMenu);
 

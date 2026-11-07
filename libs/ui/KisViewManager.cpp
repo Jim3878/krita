@@ -27,6 +27,11 @@
 #include <QDesktopServices>
 #include <QGridLayout>
 #include <QMainWindow>
+#include <QMdiArea>
+#include <QMdiSubWindow>
+#include <QProxyStyle>
+#include <QStyleFactory>
+#include <QPointer>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -1222,6 +1227,52 @@ void KisViewManager::notifyWorkspaceLoaded()
     d->canvasOnlyOptions = std::nullopt;
 }
 
+namespace {
+/**
+ * Orita: in subwindow mode, a maximized subwindow normally merges its title
+ * bar into the menu bar. When the menu bar is hidden in canvas-only mode,
+ * Qt draws the subwindow's own title bar instead. This style gives it a
+ * zero-height title bar while canvas-only mode is active.
+ */
+class OritaNoTitleBarStyle : public QProxyStyle
+{
+public:
+    OritaNoTitleBarStyle()
+        : QProxyStyle(QStyleFactory::create(qApp->style()->objectName()))
+    {
+    }
+
+    int pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const override
+    {
+        if (metric == PM_TitleBarHeight || metric == PM_MdiSubWindowFrameWidth) {
+            return 0;
+        }
+        return QProxyStyle::pixelMetric(metric, option, widget);
+    }
+};
+
+void oritaUpdateSubWindowTitleBars(QMainWindow *main, bool canvasOnly)
+{
+    QMdiArea *area = main ? main->findChild<QMdiArea*>() : nullptr;
+    if (!area) return;
+
+    static QPointer<OritaNoTitleBarStyle> style;
+    if (!style) {
+        style = new OritaNoTitleBarStyle();
+        style->setParent(qApp);
+    }
+
+    Q_FOREACH (QMdiSubWindow *subWindow, area->subWindowList()) {
+        const bool hide = canvasOnly && subWindow->isMaximized();
+        if (hide && subWindow->style() != style) {
+            subWindow->setStyle(style);
+        } else if (!hide && subWindow->style() == style) {
+            subWindow->setStyle(nullptr);
+        }
+    }
+}
+} // namespace
+
 void KisViewManager::switchCanvasOnly(bool toggled)
 {
     if (toggled == d->inCanvasOnlyMode) {
@@ -1455,6 +1506,8 @@ void KisViewManager::switchCanvasOnly(bool toggled)
             d->canvasOnlyOffsetCompensation = QPoint();
         }
     }
+
+    oritaUpdateSubWindowTitleBars(main, toggled);
 }
 
 void KisViewManager::updateCanvasOnlyActionState()

@@ -36,6 +36,9 @@
 #include "kis_floating_message.h"
 #include "canvas/kis_canvas2.h"
 #include "KisViewManager.h"
+#include "kis_color_label_selector_widget.h"
+#include "KisReferenceLineClip.h"
+#include <QFrame>
 
 #define MAXIMUM_SMOOTHNESS_DISTANCE 1000.0 // 0..1000.0 == weight in gui
 #define MAXIMUM_MAGNETISM 1000
@@ -598,11 +601,95 @@ QWidget * KisToolBrush::createOptionWidget()
     connect(m_chkAssistant, SIGNAL(toggled(bool)), snapSingleLabel, SLOT(setVisible(bool)));
     connect(m_chkAssistant, SIGNAL(toggled(bool)), snapEraserLabel, SLOT(setVisible(bool)));
 
+    createReferenceLineClipOptions(optionsWidget);
+
     KisConfig cfg(true);
 
     slotSetSmoothingType(cfg.lineSmoothingType());
 
     return optionsWidget;
+}
+
+void KisToolBrush::createReferenceLineClipOptions(QWidget *optionsWidget)
+{
+    // "Don't exceed reference layer lines" (CSP-like). The options are stored
+    // in the config and read by KisToolFreehand at the start of every stroke.
+    const KisReferenceLineClipOptions options = KisReferenceLineClipOptions::loadFromConfig();
+
+    QFrame *line = new QFrame(optionsWidget);
+    line->setFrameStyle(QFrame::HLine | QFrame::Sunken);
+    addOptionWidgetOption(line);
+
+    QCheckBox *chkEnabled = new QCheckBox(i18n("不超出參照圖層的線"), optionsWidget);
+    chkEnabled->setToolTip(i18n(
+        "下筆時，以下方選取的顏色標籤圖層作為參照，從下筆位置做填色範圍判斷，"
+        "這一筆只會畫在該範圍內。"));
+    chkEnabled->setChecked(options.enabled);
+    addOptionWidgetOption(chkEnabled);
+
+    KisColorLabelSelectorWidget *labels = new KisColorLabelSelectorWidget(optionsWidget);
+    labels->setExclusive(false);
+    labels->setButtonSize(20);
+    labels->setButtonWrapEnabled(true);
+    labels->setMouseDragEnabled(true);
+    labels->setSelection(options.colorLabels);
+    labels->setToolTip(i18n("作為參照圖層的顏色標籤"));
+    QLabel *labelsLabel = new QLabel(i18n("參照標籤:"), optionsWidget);
+    addOptionWidgetOption(labels, labelsLabel);
+
+    KisSliderSpinBox *sliderGrow = new KisSliderSpinBox(optionsWidget);
+    sliderGrow->setRange(0, 20);
+    sliderGrow->setSuffix(i18n(" px"));
+    sliderGrow->setValue(options.grow);
+    sliderGrow->setToolTip(i18n("範圍向外擴張的像素數，讓顏色可以塗到線條底下"));
+    QLabel *growLabel = new QLabel(i18n("擴張:"), optionsWidget);
+    addOptionWidgetOption(sliderGrow, growLabel);
+
+    KisSliderSpinBox *sliderCloseGap = new KisSliderSpinBox(optionsWidget);
+    sliderCloseGap->setRange(0, 32);
+    sliderCloseGap->setSuffix(i18n(" px"));
+    sliderCloseGap->setValue(options.closeGap);
+    sliderCloseGap->setToolTip(i18n("把線稿中小於這個寬度的缺口視為封閉"));
+    QLabel *closeGapLabel = new QLabel(i18n("封閉缺口:"), optionsWidget);
+    addOptionWidgetOption(sliderCloseGap, closeGapLabel);
+
+    KisSliderSpinBox *sliderThreshold = new KisSliderSpinBox(optionsWidget);
+    sliderThreshold->setRange(1, 100);
+    sliderThreshold->setValue(options.threshold);
+    sliderThreshold->setToolTip(i18n("填色範圍判斷的顏色容許差"));
+    QLabel *thresholdLabel = new QLabel(i18n("容許差:"), optionsWidget);
+    addOptionWidgetOption(sliderThreshold, thresholdLabel);
+
+    auto setDetailsVisible = [=] (bool visible) {
+        labels->setVisible(visible);
+        labelsLabel->setVisible(visible);
+        sliderGrow->setVisible(visible);
+        growLabel->setVisible(visible);
+        sliderCloseGap->setVisible(visible);
+        closeGapLabel->setVisible(visible);
+        sliderThreshold->setVisible(visible);
+        thresholdLabel->setVisible(visible);
+    };
+    setDetailsVisible(options.enabled);
+
+    auto save = [=] () {
+        KisReferenceLineClipOptions o;
+        o.enabled = chkEnabled->isChecked();
+        o.colorLabels = labels->selection();
+        o.grow = sliderGrow->value();
+        o.closeGap = sliderCloseGap->value();
+        o.threshold = sliderThreshold->value();
+        o.saveToConfig();
+    };
+
+    connect(chkEnabled, &QCheckBox::toggled, this, [=] (bool checked) {
+        setDetailsVisible(checked);
+        save();
+    });
+    connect(labels, &KisColorLabelSelectorWidget::selectionChanged, this, save);
+    connect(sliderGrow, QOverload<int>::of(&KisSliderSpinBox::valueChanged), this, save);
+    connect(sliderCloseGap, QOverload<int>::of(&KisSliderSpinBox::valueChanged), this, save);
+    connect(sliderThreshold, QOverload<int>::of(&KisSliderSpinBox::valueChanged), this, save);
 }
 
 QList<QAction *> KisToolBrushFactory::createActionsImpl(KoToolManager *toolManager)

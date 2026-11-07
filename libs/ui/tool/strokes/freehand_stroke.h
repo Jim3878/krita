@@ -17,6 +17,7 @@
 #include <brushengine/kis_paint_information.h>
 #include "kis_lod_transform.h"
 #include "KoColor.h"
+#include "KisReferenceLineClip.h"
 
 
 
@@ -196,6 +197,13 @@ public:
 
     void notifyUserStartedStroke() override;
     void notifyUserEndedStroke() override;
+
+    /**
+     * Clip this stroke to the region enclosed by the reference layer lines
+     * around the pen-down point. Must be called before the stroke is started.
+     * Disables level-of-detail painting for this stroke.
+     */
+    void setReferenceLineClip(KisReferenceLineClipJobSP job);
 
 protected:
     FreehandStrokeStrategy(const FreehandStrokeStrategy &rhs, int levelOfDetail);

@@ -291,6 +291,7 @@ void KisToolFreehand::lockTemporaryStraightRuler(const QPointF &documentPoint, Q
 
 void KisToolFreehand::initStroke(KoPointerEvent *event)
 {
+    m_helper->setReferenceLineClipOptions(KisReferenceLineClipOptions::loadFromConfig());
     m_helper->initPaint(event,
                         convertToPixelCoord(event),
                         image(),

@@ -31,6 +31,8 @@
 
 #include "brushengine/kis_paintop_utils.h"
 #include "KisAsynchronousStrokeUpdateHelper.h"
+#include "kis_resources_snapshot.h"
+#include "kis_selection.h"
 
 struct FreehandStrokeStrategy::Private
 {
@@ -64,6 +66,8 @@ struct FreehandStrokeStrategy::Private
 
     const bool needsAsynchronousUpdates = false;
     std::mutex updateEntryMutex;
+
+    KisReferenceLineClipJobSP referenceLineClip;
 };
 
 FreehandStrokeStrategy::FreehandStrokeStrategy(KisResourcesSnapshotSP resources,
@@ -127,9 +131,40 @@ void FreehandStrokeStrategy::init(Flags flags)
     m_d->efficiencyMeasurer.setEnabled(KisStrokeSpeedMonitor::instance()->haveStrokeSpeedMeasurement());
 }
 
+void FreehandStrokeStrategy::setReferenceLineClip(KisReferenceLineClipJobSP job)
+{
+    m_d->referenceLineClip = job;
+}
+
 void FreehandStrokeStrategy::initStrokeCallback()
 {
     KisPainterBasedStrokeStrategy::initStrokeCallback();
+
+    if (m_d->referenceLineClip) {
+        // This job must run before the painters are initialized by the base
+        // class, because they read the active selection from the resources.
+        //
+        // NOTE: it is added *after* calling the base class on purpose:
+        // KisStroke::addMutatedJobs() inserts every new batch of jobs in
+        // front of the stroke's own queued jobs (including the ones the base
+        // class has just added), so the batch added last runs first.
+        QVector<KisRunnableStrokeJobData*> jobs;
+        KritaUtils::addJobSequentialExclusive(jobs, [this] () {
+            KisResourcesSnapshotSP resources = m_d->resources;
+            KisNodeSP node = resources->currentNode();
+            if (!node || !node->paintDevice()) return;
+
+            KisSelectionSP selection =
+                m_d->referenceLineClip->computeSelection(node->paintDevice(),
+                                                         resources->activeSelection());
+            if (selection) {
+                resources->setSelectionOverride(selection);
+            }
+            m_d->referenceLineClip.clear();
+        });
+        runnableJobsInterface()->addRunnableJobs(jobs);
+    }
+
     m_d->efficiencyMeasurer.notifyRenderingStarted();
 }
 
@@ -331,6 +366,8 @@ void FreehandStrokeStrategy::issueSetDirtySignals()
 KisStrokeStrategy* FreehandStrokeStrategy::createLodClone(int levelOfDetail)
 {
     if (!m_d->resources->presetAllowsLod()) return 0;
+    // the clipping selection is computed in full resolution only
+    if (m_d->referenceLineClip) return 0;
     if (!m_d->resources->currentNode()->supportsLodPainting()) return 0;
 
     FreehandStrokeStrategy *clone = new FreehandStrokeStrategy(*this, levelOfDetail);

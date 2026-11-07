@@ -17,6 +17,7 @@
 #include <brushengine/kis_paintop_settings.h>
 #include "kis_smoothing_options.h"
 #include "kundo2magicstring.h"
+#include "KisReferenceLineClip.h"
 
 
 class KoPointerEvent;
@@ -42,6 +43,12 @@ public:
 
     void setSmoothness(KisSmoothingOptionsSP smoothingOptions);
     KisSmoothingOptionsSP smoothingOptions() const;
+
+    /**
+     * Options for clipping strokes to the reference layer lines. They are
+     * applied to every stroke started after this call. Disabled by default.
+     */
+    void setReferenceLineClipOptions(const KisReferenceLineClipOptions &options);
 
     bool isRunning() const;
 

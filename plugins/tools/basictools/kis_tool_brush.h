@@ -111,6 +111,7 @@ Q_SIGNALS:
 private:
     void addSmoothingAction(int enumId, const QString &id);
     void updateSmoothnessDistanceLabel();
+    void createReferenceLineClipOptions(QWidget *optionsWidget);
 private:
     QComboBox *m_cmbSmoothingType {0};
 

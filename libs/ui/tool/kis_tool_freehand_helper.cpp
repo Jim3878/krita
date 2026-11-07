@@ -34,6 +34,7 @@
 #include "strokes/freehand_stroke.h"
 #include "strokes/KisFreehandStrokeInfo.h"
 #include "KisAsynchronousStrokeUpdateHelper.h"
+#include "KisReferenceLineClip.h"
 #include "kis_canvas_resource_provider.h"
 #include <KisOptimizedBrushOutline.h>
 
@@ -62,6 +63,8 @@ struct KisToolFreehandHelper::Private
     KisAsynchronousStrokeUpdateHelper asyncUpdateHelper;
 
     KUndo2MagicString transactionText;
+
+    KisReferenceLineClipOptions referenceLineClipOptions;
 
     bool haveTangent;
     QPointF previousTangent;
@@ -290,6 +293,11 @@ void KisToolFreehandHelper::initPaint(KoPointerEvent *event,
                   bounds);
 }
 
+void KisToolFreehandHelper::setReferenceLineClipOptions(const KisReferenceLineClipOptions &options)
+{
+    m_d->referenceLineClipOptions = options;
+}
+
 bool KisToolFreehandHelper::isRunning() const
 {
     return bool(m_d->strokeId);
@@ -340,6 +348,15 @@ void KisToolFreehandHelper::initPaintImpl(qreal startAngle,
                                    m_d->transactionText,
                                    FreehandStrokeStrategy::SupportsContinuedInterstrokeData |
                                    FreehandStrokeStrategy::SupportsTimedMergeId);
+
+    KisImageSP strongImage = image;
+    if (m_d->referenceLineClipOptions.enabled && strongImage) {
+        FreehandStrokeStrategy *freehandStroke = static_cast<FreehandStrokeStrategy*>(stroke);
+        const QPoint startPos(qFloor(pi.pos().x()), qFloor(pi.pos().y()));
+        freehandStroke->setReferenceLineClip(
+            KisReferenceLineClipJobSP(
+                new KisReferenceLineClipJob(strongImage, startPos, m_d->referenceLineClipOptions)));
+    }
 
     m_d->strokeId = m_d->strokesFacade->startStroke(stroke);
 
